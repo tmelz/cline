@@ -106,6 +106,28 @@ Make Roo Code work your way with:
 - [Local Models](https://docs.roocode.com/advanced-usage/local-models) for offline use
 - [Auto-Approval Settings](https://docs.roocode.com/advanced-usage/auto-approving-actions) for faster workflows
 
+### Deep Linking
+
+You can launch Roo Code and start a task directly from a URI. This is useful for integrating Roo Code with other tools or creating shortcuts.
+
+The URI format is:
+`vscode://RooVeterinaryInc.roo-cline/task?message=<URL_ENCODED_MESSAGE>[&mode=<MODE_SLUG>][&message64=<BASE64_ENCODED_MESSAGE>]`
+
+**Parameters:**
+
+- `message`: The URL-encoded prompt for the task.
+- `mode` (optional): The slug of the mode to use (e.g., `code`, `architect`, `debug`). If omitted, the current mode is used.
+- `message64` (optional): A Base64-encoded version of the prompt. If both `message` and `message64` are provided, `message64` takes precedence.
+
+**Examples:**
+
+- **Start a task in the current mode:**
+  `vscode://RooVeterinaryInc.roo-cline/task?message=Refactor%20this%20component`
+- **Start a task in Debug mode:**
+  `vscode://RooVeterinaryInc.roo-cline/task?mode=debug&message=Figure%20out%20why%20this%20test%20is%20failing`
+- **Using Base64 for a complex prompt:**
+  `vscode://RooVeterinaryInc.roo-cline/task?message64=Q3JlYXRlIGEgbmV3IFJlYWN0IGNvbXBvbmVudCBjYWxsZWQgIlVzZXJQcm9maWxlIiB0aGF0IGRpc3BsYXlzIHRoZSB1c2VyJ3MgYXZhdGFyIGFuZCBuYW1lLg==`
+
 ## Resources
 
 ### Documentation

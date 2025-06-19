@@ -46,6 +46,7 @@
 		"roocode"
 	],
 	"activationEvents": [
+		"onUri",
 		"onLanguage",
 		"onStartupFinished"
 	],

@@ -38,7 +38,7 @@ import { findLast } from "../../shared/array"
 import { supportPrompt } from "../../shared/support-prompt"
 import { GlobalFileNames } from "../../shared/globalFileNames"
 import { ExtensionMessage } from "../../shared/ExtensionMessage"
-import { Mode, defaultModeSlug } from "../../shared/modes"
+import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import { experimentDefault, experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { formatLanguage } from "../../shared/language"
 import { Terminal } from "../../integrations/terminal/Terminal"
@@ -507,6 +507,82 @@ export class ClineProvider
 
 	public async initClineWithSubTask(parent: Task, task?: string, images?: string[]) {
 		return this.initClineWithTask(task, images, parent)
+	}
+
+	public async handleDeepLink(uri: vscode.Uri) {
+		this.log(`ClineProvider.handleDeepLink called with URI: ${uri.toString()}`)
+		const params = new URLSearchParams(uri.query)
+		const rawMessage = params.get("message") ?? ""
+		const base64Message = params.get("message64") ?? ""
+		const modeParam = params.get("mode") as Mode | null
+
+		let message = ""
+		if (base64Message) {
+			try {
+				message = Buffer.from(base64Message, "base64").toString("utf8")
+			} catch (e) {
+				vscode.window.showErrorMessage("Roo Code: Invalid base64 message in deep link.")
+				this.log(`Error decoding base64 message: ${e}`)
+				return
+			}
+		} else {
+			message = rawMessage
+		}
+
+		if (!message) {
+			vscode.window.showWarningMessage("Roo Code: No message provided in deep link.")
+			return
+		}
+
+		const { mode: currentMode } = await this.getState()
+		const customModes = await this.customModesManager.getCustomModes()
+		let newMode: Mode | undefined
+		if (modeParam && getModeBySlug(modeParam, customModes)) {
+			newMode = modeParam
+		} else if (modeParam) {
+			vscode.window.showWarningMessage(`Unknown mode "${modeParam}" in deep link – ignoring.`)
+		}
+
+		this.log(
+			`Parsed deep link params. Mode: ${newMode ?? "(not specified)"}, Message (first 20 chars): ${message.substring(
+				0,
+				20,
+			)}`,
+		)
+
+		const openWorkspaceFolders = vscode.workspace.workspaceFolders ?? []
+
+		if (openWorkspaceFolders.length === 0) {
+			vscode.window.showErrorMessage("Roo Code: No workspace folder available for the deep link task.")
+			return
+		}
+
+		// Show security confirmation dialog before executing the task
+		const MAX_PROMPT_LENGTH = 500
+		let displayMessage = message
+		if (message.length > MAX_PROMPT_LENGTH) {
+			displayMessage = message.substring(0, MAX_PROMPT_LENGTH) + "...\n\n[Prompt truncated for display]"
+		}
+
+		const answer = await vscode.window.showWarningMessage(
+			"You are about to run this prompt in Roo Code. Please be sure that you trust the prompt authors, as running unverified prompts is a security risk.",
+			{
+				modal: true,
+				detail: `Mode: ${newMode ?? currentMode}\n\nPrompt:\n${displayMessage}`,
+			},
+			"Run",
+		)
+
+		if (answer !== "Run") {
+			return
+		}
+
+		if (newMode && currentMode !== newMode) {
+			await this.handleModeSwitch(newMode)
+		}
+
+		await this.initClineWithTask(message)
+		await this.postMessageToWebview({ type: "action", action: "focusInput" })
 	}
 
 	// When initializing a new task, (not from history but from a tool command
